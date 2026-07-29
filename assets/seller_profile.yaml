@@ -1,0 +1,52 @@
+# ============================================================
+# Verkäufer-Stammdaten (Rechnungssteller)
+# ------------------------------------------------------------
+# Diese Datei ist die EINZIGE Stelle, die beim Ausrollen des
+# Skills auf eine andere Firma angepasst werden muss.
+# Alle Angaben erscheinen in der erzeugten E-Rechnung.
+# ============================================================
+
+seller:
+  # Pflicht: Offizieller Firmenname (BT-27)
+  name: "Muster GmbH"
+
+  # Pflicht: Anschrift (BT-35, BT-37, BT-38, BT-40)
+  address:
+    street: "Musterstraße 1"        # Straße + Hausnummer
+    postcode: "80331"               # PLZ
+    city: "München"                 # Ort
+    country: "DE"                   # ISO 3166-1 alpha-2 Ländercode
+
+  # Pflicht (mind. eine der beiden Angaben, BR-CO-26):
+  vat_id: "DE123456789"             # USt-IdNr. (BT-31), leer lassen wenn nicht vorhanden
+  tax_number: "143/456/78901"       # Steuernummer (BT-32), leer lassen wenn nicht vorhanden
+
+  # Optional: Handelsregister / rechtliche Angaben
+  legal_info:
+    registration: "Amtsgericht München, HRB 123456"   # erscheint als Notiz (SubjectCode REG)
+    managing_director: "Max Mustermann"                # erscheint als Notiz (SubjectCode REG)
+
+  # Optional: Kontakt (BG-6)
+  contact:
+    name: "Rechnungswesen"
+    phone: "+49 89 1234560"
+    email: "rechnung@muster-gmbh.de"
+
+  # Ist die Firma Kleinunternehmer nach § 19 UStG?
+  # true  => Rechnungen werden ohne USt ausgewiesen (Kategorie E),
+  #          mit Befreiungshinweis. vat_id darf leer sein.
+  # false => normale USt-Ausweisung
+  kleinunternehmer: false
+
+payment:
+  # Pflicht für SEPA-Überweisung (Zahlungsmittel-Code 58)
+  iban: "DE89370400440532013000"
+  bic: "COBADEFFXXX"                # optional, leer lassen wenn unbekannt
+  account_name: "Muster GmbH"       # Kontoinhaber
+
+  # Standard-Zahlungsziel in Tagen (wird genutzt, wenn der Nutzer
+  # kein Fälligkeitsdatum angibt; Fälligkeit = Rechnungsdatum + Tage)
+  default_payment_days: 30
+
+defaults:
+  currency: "EUR"                   # Rechnungswährung (BT-5)
