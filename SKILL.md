@@ -1,27 +1,36 @@
 ---
 name: e-rechnung
-description: "Erzeugt normkonforme deutsche E-Rechnungen als ZUGFeRD 2.5 / Factur-X 1.09 CII-XML im Profil EN16931 (EU-Norm EN 16931, E-Rechnungspflicht Deutschland). Sammelt Rechnungsdaten im Dialog oder extrahiert sie aus hochgeladenen Dateien (PDF, Excel, Word), berechnet Beträge und Umsatzsteuer deterministisch per Python-Skript und validiert das Ergebnis gegen XSD-Schema und EN16931-Geschäftsregeln. Unterstützt Inlandsrechnungen (19%/7%/0%), Kleinunternehmer nach § 19 UStG, Rechnungskorrekturen und Gutschriften. NUTZE DIESEN SKILL bei: E-Rechnung, eRechnung, elektronische Rechnung, ZUGFeRD, Factur-X, XRechnung, EN16931, CII, Rechnung erstellen, Rechnungskorrektur, Gutschrift, Kleinunternehmer, Umsatzsteuer berechnen, invoice XML."
+description: "Erzeugt normkonforme deutsche E-Rechnungen nach ZUGFeRD 2.5 / Factur-X 1.09 im Profil EN16931 (EU-Norm EN 16931, E-Rechnungspflicht Deutschland) — als CII-XML UND als ZUGFeRD-Hybrid-PDF (PDF/A-3 mit eingebettetem XML). Sammelt Rechnungsdaten im Dialog oder extrahiert sie aus hochgeladenen Dateien (PDF, Excel, Word), berechnet Beträge und Umsatzsteuer deterministisch per Python-Skript, validiert das XML gegen XSD-Schema und EN16931-Geschäftsregeln und die PDF auf PDF/A-3-Struktur. Unterstützt Inlandsrechnungen (19%/7%/0%), Kleinunternehmer nach § 19 UStG, Rechnungskorrekturen und Gutschriften. NUTZE DIESEN SKILL bei: E-Rechnung, eRechnung, elektronische Rechnung, ZUGFeRD, Factur-X, XRechnung, EN16931, CII, Hybrid-PDF, PDF/A-3, Rechnung erstellen, Rechnungskorrektur, Gutschrift, Kleinunternehmer, Umsatzsteuer berechnen, invoice XML, invoice PDF."
 ---
 
 # E-Rechnung (ZUGFeRD 2.5 / Factur-X 1.09, Profil EN16931)
 
-Dieser Skill erzeugt **valide elektronische Rechnungen als CII-XML** nach der
-EU-Norm EN 16931 — das Format der deutschen E-Rechnungspflicht. Der Output ist
-**ausschließlich die XML-Datei** (`factur-x.xml`), kein PDF.
+Dieser Skill erzeugt **valide elektronische Rechnungen** nach der EU-Norm
+EN 16931 — das Format der deutschen E-Rechnungspflicht. Der Output besteht
+aus **zwei Dateien**:
+
+1. `factur-x.xml` — das CII-XML (die rechtlich maßgebliche E-Rechnung)
+2. `rechnung.pdf` — die ZUGFeRD-Hybrid-PDF: eine menschenlesbare
+   PDF/A-3-Rechnung, in der dasselbe XML normkonform eingebettet ist
+   (AFRelationship, Factur-X-XMP-Metadaten, sRGB-OutputIntent,
+   eingebettete Fonts)
 
 ## Eiserne Regeln
 
 1. **NIEMALS Beträge, Steuern oder Summen selbst (im Kopf/als LLM) berechnen.**
    Alle Berechnungen macht `scripts/generate_invoice.py` mit `decimal`
    (kaufmännische Rundung). Du sammelst nur die Rohdaten.
-2. **NIEMALS XML von Hand schreiben oder verändern.** Das XML entsteht
-   ausschließlich durch das Skript aus dem Jinja2-Template.
+2. **NIEMALS XML oder PDF von Hand schreiben oder verändern.** Das XML
+   entsteht ausschließlich durch `scripts/generate_invoice.py` aus dem
+   Jinja2-Template, die Hybrid-PDF ausschließlich durch
+   `scripts/generate_pdf.py`.
 3. **NIEMALS eine Rechnungsnummer erfinden.** Sie ist immer eine
    Pflichtangabe des Nutzers (rechtlich: fortlaufend und einmalig).
 4. **NIEMALS Platzhalter für fehlende Pflichtfelder einsetzen.** Fehlt etwas,
    frage gezielt nach (siehe Checkliste). Erst generieren, wenn alles da ist.
-5. **IMMER validieren.** Nach jeder Generierung `scripts/validate_invoice.py`
-   ausführen. Nur eine Rechnung mit `ERGEBNIS: GÜLTIG` an den Nutzer ausgeben.
+5. **IMMER validieren.** Nach der XML-Generierung `scripts/validate_invoice.py`,
+   nach der PDF-Generierung `scripts/validate_pdf.py` ausführen. Nur
+   Ergebnisse mit `ERGEBNIS: GÜLTIG` an den Nutzer ausgeben.
 6. Die Verkäufer-Stammdaten kommen aus `assets/seller_profile.yaml` —
    nicht beim Nutzer erfragen, außer die Datei ist unvollständig oder der
    Nutzer will explizit abweichen.
@@ -105,19 +114,53 @@ python scripts/validate_invoice.py factur-x.xml
 Prüft: (1) XSD-Schema Factur-X 1.09 EN16931, (2) EN16931-Rechenregeln
 (BR-CO-10…17, Steuerbasis je Kategorie, Befreiungsgründe, IBAN-Mod-97).
 
-- `ERGEBNIS: GÜLTIG` → Datei an den Nutzer ausgeben.
+- `ERGEBNIS: GÜLTIG` → weiter mit Schritt 5.
 - `ERGEBNIS: UNGÜLTIG` → Fehler beheben (meist Eingabedaten), neu generieren.
   Niemals das XML direkt patchen.
 
-### Schritt 5: Ergebnis präsentieren
+### Schritt 5: Hybrid-PDF (PDF/A-3) generieren
+
+Erst wenn das XML `GÜLTIG` ist:
+
+```
+python scripts/generate_pdf.py input.json --xml factur-x.xml --output rechnung.pdf
+```
+
+Das Skript rendert aus **denselben Eingabedaten** (identische Berechnung wie
+bei der XML-Generierung, keine Neuberechnung) eine menschenlesbare Rechnung
+und bettet `factur-x.xml` PDF/A-3-konform ein (AFRelationship=Alternative,
+XMP mit Factur-X-Extension-Schema, sRGB-OutputIntent, eingebettete Fonts).
+Es bricht ab, wenn die Rechnungsnummer aus `input.json` nicht im XML
+vorkommt — dann passen XML und Eingabedaten nicht zusammen: XML neu
+generieren und validieren.
+
+### Schritt 6: PDF validieren (Pflicht!)
+
+```
+python scripts/validate_pdf.py rechnung.pdf
+```
+
+Prüft: (1) das eingebettete XML erneut vollständig (XSD +
+EN16931-Rechenregeln), (2) die PDF/A-3-Struktur (XMP `pdfaid part=3`,
+Factur-X-XMP-Einträge, AFRelationship, `/AF`, OutputIntent mit ICC-Profil,
+eingebettete Fonts, keine Verschlüsselung).
+
+- `ERGEBNIS: GÜLTIG` → beide Dateien an den Nutzer ausgeben.
+- `ERGEBNIS: UNGÜLTIG` → Ursache beheben, PDF neu generieren.
+  Niemals die PDF direkt patchen.
+
+### Schritt 7: Ergebnis präsentieren
 
 Gib dem Nutzer aus:
-1. Die XML-Datei zum Download.
+1. Die Hybrid-PDF (`rechnung.pdf`) und die XML-Datei (`factur-x.xml`)
+   zum Download.
 2. Eine Zusammenfassung: Rechnungsnummer, Käufer, Netto / USt je Satz /
    Brutto / Zahlbetrag, Fälligkeit (Werte aus der Skript-Ausgabe übernehmen,
    nicht neu rechnen).
-3. Den Hinweis: *"Validiert gegen Factur-X 1.09 EN16931 (XSD +
-   EN16931-Rechenregeln). Das XML ist die rechtlich maßgebliche E-Rechnung
+3. Den Hinweis: *"Die PDF ist eine ZUGFeRD-/Factur-X-Hybridrechnung
+   (PDF/A-3) mit eingebettetem CII-XML, validiert gegen Factur-X 1.09
+   EN16931 (XSD + EN16931-Rechenregeln) und auf PDF/A-3-Strukturmerkmale
+   geprüft. Das eingebettete XML ist die rechtlich maßgebliche E-Rechnung
    im Sinne der deutschen E-Rechnungspflicht."*
 
 ## Ausrollen auf eine andere Firma
@@ -132,7 +175,8 @@ nicht abdeckt — nicht improvisieren:
 - Reverse Charge (§ 13b UStG), innergemeinschaftliche Lieferungen, Export
 - Rabatte/Zuschläge auf Dokumentebene
 - Fremdwährungen mit Steuerumrechnung
-- ZUGFeRD-Hybrid-PDF (PDF/A-3) — Output ist bewusst nur XML
+- Eigenes Corporate Design / Logo in der PDF (Layout ist ein neutraler
+  DIN-5008-angelehnter Standard)
 - Andere Profile als EN16931 (MINIMUM/BASIC/EXTENDED/XRechnung-Extension)
 
 ## Dateien
@@ -142,8 +186,12 @@ nicht abdeckt — nicht improvisieren:
 | `assets/seller_profile.yaml` | Verkäufer-Stammdaten (pro Firma austauschbar) |
 | `assets/invoice_template.xml.j2` | Jinja2-Template des CII-XML (nicht manuell rendern) |
 | `assets/schema/*.xsd` | Factur-X 1.09 EN16931 XSD für die Validierung |
+| `assets/fonts/DejaVuSans*.ttf` | Gebündelte Fonts für die PDF (PDF/A-Pflicht: eingebettet) |
+| `assets/icc/sRGB.icc` | sRGB-ICC-Profil für den PDF/A-OutputIntent |
 | `scripts/generate_invoice.py` | Berechnung + XML-Generierung |
-| `scripts/validate_invoice.py` | XSD- + Geschäftsregel-Validierung |
+| `scripts/validate_invoice.py` | XSD- + Geschäftsregel-Validierung des XML |
+| `scripts/generate_pdf.py` | Visuelle Rechnung + PDF/A-3-Einbettung des XML |
+| `scripts/validate_pdf.py` | Validierung der Hybrid-PDF (XML + PDF/A-3-Struktur) |
 | `references/codelisten.md` | Einheiten, Steuerkategorien, Rechnungstypen, Zahlungsmittel |
 | `references/geschaeftsfaelle.md` | Regeln je Geschäftsfall |
 | `references/beispiele/*.xml` | Offizielle ZUGFeRD-Beispielrechnungen zum Nachschlagen |

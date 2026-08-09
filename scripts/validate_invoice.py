@@ -245,6 +245,8 @@ def main():
         print("\nERGEBNIS: UNGÜLTIG — Rechnung darf so nicht versendet werden.")
         sys.exit(1)
     print("\nERGEBNIS: GÜLTIG (Struktur + Rechenregeln geprüft)")
+    print("NÄCHSTER SCHRITT: Hybrid-PDF erzeugen mit: "
+          "python generate_pdf.py <input.json> --xml " + args.xml)
 
 
 if __name__ == "__main__":
