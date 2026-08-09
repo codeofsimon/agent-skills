@@ -20,7 +20,7 @@ Die vollständige Funktionsweise, den Workflow und alle Regeln beschreibt [`SKIL
 
 **Grenzen:** kein Reverse Charge, keine innergemeinschaftlichen Lieferungen/Exporte, keine Fremdwährungen, kein eigenes Corporate Design in der PDF, nur Profil EN16931. Details siehe `SKILL.md`.
 
-Beispiel-Dateien (generierte XML/PDF-Paare) liegen unter `references/beispiele/`.
+Beispiel-Dateien (generierte XML/PDF-Paare, `Demo-*`/`Demo2-*`) liegen direkt im Repo-Root.
 
 ## Hinweis
 
